@@ -7,6 +7,33 @@
       "resize_256x256": {
         "filename": "6dddba71-8593-4ca8-8d54-ef862f837bf9_resize_256x256.png",
         "processed_at": "2025-04-19T10:35:37.539671"
+      },
+      "aspect_16x9": {
+        "filename": "6dddba71-8593-4ca8-8d54-ef862f837bf9_aspect_16x9.png",
+        "processed_at": "2025-04-19T16:03:11.836869"
+      },
+      "aspect_1x1": {
+        "filename": "6dddba71-8593-4ca8-8d54-ef862f837bf9_aspect_1x1.png",
+        "processed_at": "2025-04-19T16:04:15.869916"
+      },
+      "remove_bg": {
+        "filename": "6dddba71-8593-4ca8-8d54-ef862f837bf9_remove_bg.png",
+        "processed_at": "2025-04-19T16:38:47.711515"
+      },
+      "remove_obj_5_9_500_100": {
+        "filename": "6dddba71-8593-4ca8-8d54-ef862f837bf9_remove_obj_5_9_500_100.png",
+        "processed_at": "2025-04-19T16:47:04.324035"
+      }
+    }
+  },
+  "dc700bab-7ebb-40c7-9b6a-0d6ee2ea2595": {
+    "original_filename": "logo2.png",
+    "filename": "dc700bab-7ebb-40c7-9b6a-0d6ee2ea2595.png",
+    "uploaded_at": "2025-04-19T16:08:42.313593",
+    "processed_versions": {
+      "remove_bg": {
+        "filename": "dc700bab-7ebb-40c7-9b6a-0d6ee2ea2595_remove_bg.png",
+        "processed_at": "2025-04-19T16:37:05.203114"
       }
     }
   }

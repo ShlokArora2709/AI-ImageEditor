@@ -1,91 +1,75 @@
 from flask import Blueprint, request, jsonify, current_app, send_file
 from PIL import Image
-import os
 from app.models.storage import ImageStorage
-from app.utils.image_processing import resize_image, change_aspect_ratio
+from app.utils.image_processing import remove_background, remove_object
 
-resize_bp = Blueprint('resize', __name__)
 
-@resize_bp.route('/resize', methods=['POST'])
-def resize_image_route():
+cleanup_bp = Blueprint('cleanup', __name__)
+
+
+# taking lot of time def need to impliment job queue for this
+@cleanup_bp.route('/remove-background', methods=['POST'])
+def remove_background_route():
     data = request.json
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
     image_id = data.get('image_id')
-    width = data.get('width')
-    height = data.get('height')
-    
     if not image_id:
         return jsonify({'error': 'Image ID is required'}), 400
-    if not width or not height:
-        return jsonify({'error': 'Width and height are required'}), 400
-    
-    try:
-        width = int(width)
-        height = int(height)
-    except ValueError:
-        return jsonify({'error': 'Width and height must be integers'}), 400
-        
 
     storage = ImageStorage(current_app.config['UPLOAD_FOLDER'])
     image_path = storage.get_image_path(image_id)
-    
     if not image_path:
         return jsonify({'error': 'Image not found'}), 404
-        
+
     try:
-        operation = f"resize_{width}x{height}"
-        
-        
+        operation = "remove_bg"
         existing_path = storage.get_processed_image_path(image_id, operation)
         if existing_path:
             return send_file(existing_path)
-        img = Image.open(image_path)
-        resized_img = resize_image(img, width, height)
-        processed_path = storage.save_processed_image(image_id, operation, resized_img)
 
+        img = Image.open(image_path)
+        processed_img = remove_background(img)
+        processed_path = storage.save_processed_image(image_id, operation, processed_img)
         return send_file(processed_path)
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-@resize_bp.route('/aspect-ratio', methods=['POST'])
-def change_aspect_ratio_route():
-    # Validate request data
+@cleanup_bp.route('/remove-object', methods=['POST'])
+def remove_object_route():
     data = request.json
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-        
+
     image_id = data.get('image_id')
-    ratio = data.get('ratio') 
+    x = data.get('x')
+    y = data.get('y')
+    width = data.get('width')
+    height = data.get('height')
 
     if not image_id:
         return jsonify({'error': 'Image ID is required'}), 400
-    if not ratio:
-        return jsonify({'error': 'Aspect ratio is required'}), 400
-    try:
-        width_ratio, height_ratio = map(int, ratio.split(':'))
-    except ValueError:
-        return jsonify({'error': 'Invalid aspect ratio format. Use "width:height" (e.g., "16:9")'}), 400
+    if x is None or y is None or width is None or height is None:
+        return jsonify({'error': 'Object coordinates are required'}), 400
+
     storage = ImageStorage(current_app.config['UPLOAD_FOLDER'])
     image_path = storage.get_image_path(image_id)
-    
     if not image_path:
         return jsonify({'error': 'Image not found'}), 404
-        
+
     try:
-        operation = f"aspect_{ratio.replace(':', 'x')}"
-        
+        operation = f"remove_obj_{x}_{y}_{width}_{height}"
         existing_path = storage.get_processed_image_path(image_id, operation)
         if existing_path:
             return send_file(existing_path)
-        img = Image.open(image_path)
-        processed_img = change_aspect_ratio(img, width_ratio, height_ratio)  # type: ignore
-        processed_path = storage.save_processed_image(image_id, operation, processed_img)
 
+        img = Image.open(image_path)
+        processed_img = remove_object(img, x, y, width, height)
+        processed_path = storage.save_processed_image(image_id, operation, processed_img)
         return send_file(processed_path)
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500

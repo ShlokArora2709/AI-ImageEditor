@@ -2,6 +2,7 @@ from flask import Flask
 import os
 from .routes.resize import resize_bp
 from .routes.upload import upload_bp
+from .routes.cleanup import cleanup_bp
 
 def create_app():
     app = Flask(__name__)
@@ -13,5 +14,6 @@ def create_app():
     
     app.register_blueprint(upload_bp)
     app.register_blueprint(resize_bp)
+    app.register_blueprint(cleanup_bp)
     
     return app
