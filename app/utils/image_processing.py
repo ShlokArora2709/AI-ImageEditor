@@ -1,8 +1,40 @@
-from PIL import Image, ImageEnhance,ImageFilter
+from PIL import Image
 import io
 import cv2
 import numpy as np
-from rembg import remove
+import requests
+import os
+from realesrgan import RealESRGANer
+from basicsr.archs.rrdbnet_arch import RRDBNet
+
+WEIGHTS_DIR = "weights"
+WEIGHTS_FILE = "RealESRGAN_x4plus.pth"
+WEIGHTS_PATH = os.path.join(WEIGHTS_DIR, WEIGHTS_FILE)
+WEIGHTS_URL = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+
+if not os.path.exists(WEIGHTS_DIR):
+    os.makedirs(WEIGHTS_DIR) 
+
+if not os.path.exists(WEIGHTS_PATH):  # Check if the weights file exists
+    print(f"Downloading {WEIGHTS_FILE}...")
+    response = requests.get(WEIGHTS_URL, stream=True)
+    if response.status_code == 200:
+        with open(WEIGHTS_PATH, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        print(f"{WEIGHTS_FILE} downloaded successfully.")
+    else:
+        raise Exception(f"Failed to download {WEIGHTS_FILE}. Status code: {response.status_code}")
+else:
+    print(f"{WEIGHTS_FILE} already exists.")
+
+model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32)
+upsampler = RealESRGANer(
+    scale=4, 
+    model_path='weights/RealESRGAN_x4plus.pth',  
+    model=model,
+    tile=0
+)
 
 def resize_image(img:Image, width:int, height:int)->io.BytesIO:
     resized_img = img.resize((width, height), Image.LANCZOS)
@@ -78,5 +110,27 @@ def remove_object(img, x, y, width, height):
     img_io = io.BytesIO()
     img_format = img.format if img.format else 'JPEG'
     result_pil.save(img_io, format=img_format)
+    img_io.seek(0)
+    return img_io
+
+def clean_noise(img: Image.Image):
+    # Step 1: Validate the input image
+    if img is None:
+        raise ValueError("Image not found or corrupted.")
+    
+    # Step 2: Convert PIL Image to NumPy array (OpenCV format)
+    img_np = np.array(img)
+    if img_np.shape[2] == 4:  # Remove alpha channel if present
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_BGRA2BGR)
+    
+    # Step 3: Upscale the image using RealESRGAN
+    pred_image, _ = upsampler.enhance(img_np)
+    print("Image cleaned")
+    
+    # Step 4: Convert the enhanced NumPy array back to PIL Image
+    pred_image_pil = Image.fromarray(cv2.cvtColor(pred_image, cv2.COLOR_BGR2RGB))
+    img_io = io.BytesIO()
+    img_format = img.format if img.format else 'JPEG'
+    pred_image_pil.save(img_io, format=img_format)
     img_io.seek(0)
     return img_io

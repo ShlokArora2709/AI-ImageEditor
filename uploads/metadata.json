@@ -36,5 +36,16 @@
         "processed_at": "2025-04-19T16:37:05.203114"
       }
     }
+  },
+  "7448bdf0-5985-41b2-856f-eac14f7dd5ea": {
+    "original_filename": "Untitled.jpg",
+    "filename": "7448bdf0-5985-41b2-856f-eac14f7dd5ea.jpg",
+    "uploaded_at": "2025-04-20T07:37:09.595629",
+    "processed_versions": {
+      "remove_noise": {
+        "filename": "7448bdf0-5985-41b2-856f-eac14f7dd5ea_remove_noise.jpg",
+        "processed_at": "2025-04-20T09:46:48.502373"
+      }
+    }
   }
 }
