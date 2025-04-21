@@ -7,13 +7,8 @@ from basicsr.archs.rrdbnet_arch import RRDBNet
 from .downloadModels import download_models
 from segment_anything import sam_model_registry, SamPredictor
 import torch
-import traceback
-import sys
-import logging
+from diffusers import StableDiffusionInstructPix2PixPipeline
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 download_models()
 print("Models downloaded successfully.")
@@ -29,6 +24,9 @@ upsampler = RealESRGANer(
     tile=0,
     device=device,
 )
+model_id = "timbrooks/instruct-pix2pix"
+
+pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(model_id).to("cpu")
 print(" model loaded successfully.")
 def resize_image(img:Image, width:int, height:int)->io.BytesIO:
     resized_img = img.resize((width, height), Image.LANCZOS)
@@ -180,3 +178,20 @@ def replace_bg(img: Image.Image, bg: Image.Image) -> io.BytesIO:
     img_io.seek(0)
     return img_io
 
+def edit_prompt(img: Image.Image, prompt: str) -> io.BytesIO:
+    img = img.resize((256,256))
+    try:
+        image = pipe(
+        prompt=prompt, 
+        image=img,
+        num_inference_steps=20,
+        image_guidance_scale=1.5
+    ).images[0]
+        print("Image edited")
+    except Exception as e:
+        return str(e)
+    img_io = io.BytesIO()
+    img_format = img.format if img.format else 'JPEG'
+    image.save(img_io, format=img_format)
+    img_io.seek(0)
+    return img_io

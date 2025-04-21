@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app, send_file
 from PIL import Image
 from app.models.storage import ImageStorage
-from app.utils.image_processing import replace_bg
+from app.utils.image_processing import replace_bg,edit_prompt
 
 editing_bp = Blueprint('editing', __name__)
 
@@ -33,6 +33,37 @@ def replace_background():
             image = Image.open(image_path)
             bg_image = Image.open(bg_image)
             result = replace_bg(image, bg_image)
+            processed_path = storage.save_processed_image(image_id, operation, result)
+            return send_file(processed_path, mimetype='image/png')
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+#VERY def need async routing
+@editing_bp.route('/prompt-edit', methods=['POST'])
+def edit_image_prompt():
+    data =request.json
+
+    if "image_id" not in data:
+        return jsonify({"error": "No image provided"}), 400
+    if "prompt" not in data:
+        return jsonify({"error": "No prompt provided"}), 400
+    
+    image_id = data["image_id"]
+    prompt = data["prompt"]
+
+    storage = ImageStorage(current_app.config['UPLOAD_FOLDER'])
+    image_path =storage.get_image_path(image_id)
+    if not image_path:
+        return jsonify({"error": "Image not found"}), 404
+    try:
+        operation = f"edit_{prompt}"
+        existing_path = storage.get_processed_image_path(image_id, operation)
+        if existing_path:
+            return send_file(existing_path, mimetype='image/png')
+        else:
+            image = Image.open(image_path)
+            result = edit_prompt(image, prompt)
             processed_path = storage.save_processed_image(image_id, operation, result)
             return send_file(processed_path, mimetype='image/png')
     
