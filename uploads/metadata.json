@@ -47,5 +47,16 @@
         "processed_at": "2025-04-20T09:46:48.502373"
       }
     }
+  },
+  "7720d315-d667-4967-b9c7-5b572702483f": {
+    "original_filename": "person.jpg",
+    "filename": "7720d315-d667-4967-b9c7-5b572702483f.jpg",
+    "uploaded_at": "2025-04-21T06:57:59.410818",
+    "processed_versions": {
+      "replace_bg.jpg": {
+        "filename": "7720d315-d667-4967-b9c7-5b572702483f_replace_bg.jpg.jpg",
+        "processed_at": "2025-04-21T07:22:40.965603"
+      }
+    }
   }
 }

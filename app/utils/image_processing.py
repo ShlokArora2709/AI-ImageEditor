@@ -2,40 +2,34 @@ from PIL import Image
 import io
 import cv2
 import numpy as np
-import requests
-import os
 from realesrgan import RealESRGANer
 from basicsr.archs.rrdbnet_arch import RRDBNet
+from .downloadModels import download_models
+from segment_anything import sam_model_registry, SamPredictor
+import torch
+import traceback
+import sys
+import logging
 
-WEIGHTS_DIR = "weights"
-WEIGHTS_FILE = "RealESRGAN_x4plus.pth"
-WEIGHTS_PATH = os.path.join(WEIGHTS_DIR, WEIGHTS_FILE)
-WEIGHTS_URL = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-if not os.path.exists(WEIGHTS_DIR):
-    os.makedirs(WEIGHTS_DIR) 
-
-if not os.path.exists(WEIGHTS_PATH):  # Check if the weights file exists
-    print(f"Downloading {WEIGHTS_FILE}...")
-    response = requests.get(WEIGHTS_URL, stream=True)
-    if response.status_code == 200:
-        with open(WEIGHTS_PATH, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        print(f"{WEIGHTS_FILE} downloaded successfully.")
-    else:
-        raise Exception(f"Failed to download {WEIGHTS_FILE}. Status code: {response.status_code}")
-else:
-    print(f"{WEIGHTS_FILE} already exists.")
+download_models()
+print("Models downloaded successfully.")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+sam_model=sam_model_registry["vit_b"](checkpoint="weights/sam_vit_b_01ec64.pth").to("cpu")
+predictor = SamPredictor(sam_model)
 
 model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32)
 upsampler = RealESRGANer(
     scale=4, 
     model_path='weights/RealESRGAN_x4plus.pth',  
     model=model,
-    tile=0
+    tile=0,
+    device=device,
 )
-
+print(" model loaded successfully.")
 def resize_image(img:Image, width:int, height:int)->io.BytesIO:
     resized_img = img.resize((width, height), Image.LANCZOS)
     
@@ -134,3 +128,55 @@ def clean_noise(img: Image.Image):
     pred_image_pil.save(img_io, format=img_format)
     img_io.seek(0)
     return img_io
+
+def replace_bg(img: Image.Image, bg: Image.Image) -> io.BytesIO:
+    if predictor is None:
+        raise ValueError("Predictor object is None. Initialize it before calling replace_bg.")
+    try:
+        image = np.array(img)
+        
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        else:
+            if len(image.shape) == 2:
+                image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+            elif len(image.shape) == 3 and image.shape[2] == 4:
+                image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
+                
+        MAX_DIM = 1024
+        if max(image.shape[:2]) > MAX_DIM:
+            scale = MAX_DIM / max(image.shape[:2])
+            new_size = (int(image.shape[1] * scale), int(image.shape[0] * scale))
+            image = cv2.resize(image, new_size)
+        
+        if image.size == 0 or image is None:
+            raise ValueError("Invalid image after preprocessing.")
+            
+        predictor.set_image(image)
+        input_point = np.array([[image.shape[1] // 2, image.shape[0] // 2]])
+        input_label = np.array([1])  
+        masks, scores, _ = predictor.predict(
+            point_coords=input_point,
+            point_labels=input_label,
+            multimask_output=True,
+        )
+
+        if bg.mode != "RGB":
+            bg = bg.convert("RGB")
+        bg_np = np.array(bg)
+        background = cv2.resize(bg_np, (image.shape[1], image.shape[0]))
+
+        best_mask = masks[np.argmax(scores)]
+        background = cv2.resize(bg_np, (image.shape[1], image.shape[0]))
+        mask_3ch = np.repeat(best_mask[:, :, np.newaxis], 3, axis=2)
+        foreground = np.where(mask_3ch, image, 0)
+        final_result = np.where(mask_3ch, foreground, background)
+    except Exception as e:
+        return str(e)
+    pil_res = Image.fromarray(cv2.cvtColor(final_result, cv2.COLOR_BGR2RGB))
+    img_io = io.BytesIO()
+    img_format = img.format if img.format else 'JPEG'
+    pil_res.save(img_io, format=img_format)
+    img_io.seek(0)
+    return img_io
+
