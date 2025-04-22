@@ -62,5 +62,11 @@
         "processed_at": "2025-04-21T08:30:16.951924"
       }
     }
+  },
+  "9ad65743-6a94-44a7-8e52-6dede8c20d03": {
+    "original_filename": "person.jpg",
+    "filename": "9ad65743-6a94-44a7-8e52-6dede8c20d03.jpg",
+    "uploaded_at": "2025-04-22T13:08:06.941120",
+    "processed_versions": {}
   }
 }
